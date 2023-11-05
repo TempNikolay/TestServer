@@ -64,26 +64,40 @@ namespace ServerEngine
             {
                 // Принимаем запрос клиента
                 var client = await listener.AcceptTcpClientAsync();
-                var _ = ProcessClientAsync(client);
+                // Чтобы не занимать один поток и обработать другой запрос
+                var _ = HandleClientAsync(client);
             }
         }
 
-        private async Task ProcessClientAsync(TcpClient client)
+        /// <summary>
+        /// Обработать клиент (асинхронно)
+        /// </summary>
+        /// <param name="client">Клиент</param>
+        /// <returns></returns>
+        private async Task HandleClientAsync(TcpClient client)
         {
             using (client)
-            using (var stream = client.GetStream())
-            using (var reader = new StreamReader(stream))
+            using (var stream = client.GetStream()) // получаем поток запроса клиента
+            using (var reader = new StreamReader(stream)) // Создаем считыватель потока
             {
-                var firstLine = await reader.ReadLineAsync();
+                // Читаем только первую строку запроса
+                var firstLine = await reader.ReadLineAsync(); 
+                // Считываем остальное, чтобы закончить запрос
                 for (string? line = null; line != String.Empty; line = await reader.ReadLineAsync()) ;
 
+                // Получаем информацию о запросе из первой строки
                 var request = RequestParser.Parse(firstLine);
 
+                // Обрабатываем полученный запрос
                 await _handler.HandleAsync(stream, request);
             }
         }
 
-        private void ProcessClient(TcpClient client)
+        /// <summary>
+        /// Обработать клиент
+        /// </summary>
+        /// <param name="client">Клиент</param>
+        private void HandleClient(TcpClient client)
         {
             ThreadPool.QueueUserWorkItem(o =>
             {
